@@ -6,6 +6,7 @@ import { makeQuestionSet, seededRandom } from "@/lib/questions";
 import { saveScore } from "@/lib/leaderboard";
 
 type Rival = { name: string; score: number; question: number; connected: boolean };
+type FeedbackState = "correct" | "wrong" | "passed" | "revealed" | null;
 type Props = { name: string; onFinish: () => void; onExit?: () => void; onProgress?: (progress: { question: number; score: number; finished: boolean }) => void; online?: boolean; rivals?: Rival[]; questionSeed?: string };
 const MAIN_SECONDS = 240;
 
@@ -14,7 +15,7 @@ export function SinglePlayerGame({ name, onFinish, onExit, onProgress, online = 
   const [index, setIndex] = useState(0), [score, setScore] = useState(0), [mainTime, setMainTime] = useState(MAIN_SECONDS);
   const [revealed, setRevealed] = useState<number[]>([]), [answering, setAnswering] = useState(false), [deadline, setDeadline] = useState<number | null>(null);
   const [guess, setGuess] = useState(""), [message, setMessage] = useState(""), [correct, setCorrect] = useState(0), [wrong, setWrong] = useState(0), [passed, setPassed] = useState(0);
-  const [finished, setFinished] = useState(false), [saved, setSaved] = useState(false), [now, setNow] = useState(Date.now()), [transitioning, setTransitioning] = useState(false);
+  const [finished, setFinished] = useState(false), [saved, setSaved] = useState(false), [now, setNow] = useState(Date.now()), [transitioning, setTransitioning] = useState(false), [feedbackState, setFeedbackState] = useState<FeedbackState>(null), [resultValue, setResultValue] = useState(0);
   const input = useRef<HTMLInputElement>(null), advancing = useRef(false), question = set[index], value = question ? Array.from(question.answer).length * 100 - revealed.length * 100 : 0;
 
   const next = (result: "correct" | "wrong" | "revealed" | "passed", delayMs = 800) => {
@@ -22,10 +23,13 @@ export function SinglePlayerGame({ name, onFinish, onExit, onProgress, online = 
     advancing.current = true;
     setTransitioning(true);
     setAnswering(false);
+    setFeedbackState(result);
+    setResultValue(value);
+    setRevealed(Array.from({ length: Array.from(question.answer).length }, (_, position) => position));
     if (result === "correct") { setScore((s) => s + value); setCorrect((c) => c + 1); }
     if (result === "wrong") { setScore((s) => s - value); setWrong((w) => w + 1); }
     if (result === "passed") setPassed((count) => count + 1);
-    setTimeout(() => { if (index + 1 >= set.length) setFinished(true); else { setIndex((i) => i + 1); setRevealed([]); setAnswering(false); setDeadline(null); setGuess(""); setMessage(""); setTransitioning(false); advancing.current = false; } }, delayMs);
+    setTimeout(() => { if (index + 1 >= set.length) setFinished(true); else { setIndex((i) => i + 1); setRevealed([]); setAnswering(false); setDeadline(null); setGuess(""); setMessage(""); setFeedbackState(null); setResultValue(0); setTransitioning(false); advancing.current = false; } }, delayMs);
   };
   const beginAnswer = () => {
     if (answering || advancing.current || finished) return;
@@ -45,15 +49,15 @@ export function SinglePlayerGame({ name, onFinish, onExit, onProgress, online = 
   if (finished) return <section className="game-results mx-auto max-w-2xl p-8 text-center"><p className="stage-eyebrow mx-auto w-fit">Yarışma tamamlandı</p><h2 className="mt-7 text-6xl font-black text-white md:text-7xl">{score.toLocaleString("tr-TR")}<small className="ml-3 text-xl tracking-widest text-red-300">PUAN</small></h2><div className="mt-8 grid grid-cols-3 gap-3"><Stat label="Bilinen" value={correct}/><Stat label="Bilemedi" value={wrong}/><Stat label="Pas" value={passed}/></div><button onClick={onFinish} className="stage-action stage-answer mt-9 px-8 py-3">ANA MENÜ</button></section>;
   if (!question) return null;
   const answerTime = deadline ? Math.max(0, Math.ceil((deadline - now) / 1000)) : 15;
-  return <section className={`game-stage mx-auto max-w-7xl p-5 md:p-8 ${answering ? "is-answering" : ""}`}>
+  return <section className={`game-stage mx-auto max-w-7xl p-5 md:p-8 ${answering ? "is-answering" : ""} ${feedbackState ? `feedback-${feedbackState}` : ""}`}>
     <header className="game-topbar"><div>{online && onExit && <button type="button" onClick={onExit} className="stage-exit">← LOBİYE DÖN</button>}<p className="stage-eyebrow">{online ? "CANLI ONLINE" : "TEK OYUNCULU"}</p><h2 className="mt-2 text-xl font-black uppercase tracking-wide text-white">{name} <span className="text-white/35">·</span> Soru {index + 1}<span className="text-white/40">/{set.length}</span></h2></div><div className="flex gap-3"><Stat label="PUAN" value={score}/><Stat label={answering ? "CEVAP" : "SÜRE"} value={answering ? answerTime : `${Math.floor(mainTime / 60)}:${String(mainTime % 60).padStart(2,"0")}`}/></div></header>
     {answering && deadline && <div className={`answer-countdown ${answerTime <= 5 ? "is-urgent" : ""}`} role="timer" aria-live="assertive"><span>CEVAP SÜRESİ</span><strong>{answerTime}</strong><small>SANİYE</small></div>}
     <div className="stage-layout mt-6"><div>
     <div className="stage-question"><p className="text-xs font-black uppercase tracking-[.18em] text-white/65">{Array.from(question.answer).length} harf{question.origin !== "Doğrulanacak" && <> · {question.origin}</>} · {question.difficulty}</p><p className="mt-3 text-xl font-bold leading-snug text-white md:text-2xl">{question.clue}</p></div>
-    <div className="stage-letters" aria-label="Cevap modunu açan harf kutuları">{Array.from(question.answer).map((letter, i) => <button type="button" key={i} onClick={beginAnswer} disabled={answering} aria-label={`${i + 1}. harf kutusu; cevap vermek için seç`} title="Cevap vermek için tıkla" className={`stage-letter ${revealed.includes(i) ? "is-open" : ""}`}>{revealed.includes(i) ? letter : ""}</button>)}</div>
-    <p className="stage-value">{value}<small> PUAN</small></p>
-    {message && <p role="status" className={`mt-5 text-center font-black ${message === "Doğru cevap" ? "text-teal-300" : "text-rose-300"}`}>{message}</p>}
-    {!transitioning && (answering ? <form onSubmit={(e) => { e.preventDefault(); const feedback = answerFeedback(guess, question.answer); setMessage(feedback); if (feedback === "Doğru cevap") { setDeadline(null); next("correct"); } else setGuess(""); }} className="stage-answer-form"><input ref={input} value={guess} onChange={(e) => setGuess(e.target.value)} aria-label="Cevabın" placeholder="CEVABINI YAZ"/><button className="stage-action stage-answer">GÖNDER</button></form> : <div className="stage-actions"><button onClick={() => { setRevealed(Array.from({ length: Array.from(question.answer).length }, (_, position) => position)); setMessage(`Pas · Doğru kelime: ${question.answer}`); next("passed", 2000); }} className="stage-action stage-pass">PAS</button><button disabled={revealed.length === Array.from(question.answer).length} onClick={() => { const opened = revealLetter(question.answer, revealed); setRevealed(opened); if (opened.length === Array.from(question.answer).length) { setMessage(`Kelime tamamlandı · ${question.answer}`); next("revealed", 3000); } }} className="stage-action stage-reveal">HARF LÜTFEN</button><button onClick={beginAnswer} className="stage-action stage-answer">CEVAPLA</button></div>)}
+    <div className="stage-letters" aria-label="Cevap modunu açan harf kutuları">{Array.from(question.answer).map((letter, i) => <button type="button" key={i} onClick={beginAnswer} disabled={answering || transitioning} aria-label={`${i + 1}. harf kutusu; cevap vermek için seç`} title="Cevap vermek için tıkla" style={{ animationDelay: `${i * 65}ms` }} className={`stage-letter ${revealed.includes(i) ? "is-open" : ""}`}>{revealed.includes(i) ? letter : ""}</button>)}</div>
+    <p className="stage-value">{transitioning ? resultValue : value}<small> PUAN</small></p>
+    {message && <p role="status" className="stage-feedback-message">{message}</p>}
+    {!transitioning && (answering ? <form onSubmit={(e) => { e.preventDefault(); const feedback = answerFeedback(guess, question.answer); setMessage(feedback); if (feedback === "Doğru cevap") { setDeadline(null); next("correct", 1800); } else setGuess(""); }} className="stage-answer-form"><input ref={input} value={guess} onChange={(e) => setGuess(e.target.value)} aria-label="Cevabın" placeholder="CEVABINI YAZ"/><button className="stage-action stage-answer">GÖNDER</button></form> : <div className="stage-actions"><button onClick={() => { setRevealed(Array.from({ length: Array.from(question.answer).length }, (_, position) => position)); setMessage(`Pas · Doğru kelime: ${question.answer}`); next("passed", 2000); }} className="stage-action stage-pass">PAS</button><button disabled={revealed.length === Array.from(question.answer).length} onClick={() => { const opened = revealLetter(question.answer, revealed); setRevealed(opened); if (opened.length === Array.from(question.answer).length) { setMessage(`Kelime tamamlandı · ${question.answer}`); next("revealed", 3000); } }} className="stage-action stage-reveal">HARF LÜTFEN</button><button onClick={beginAnswer} className="stage-action stage-answer">CEVAPLA</button></div>)}
     </div><LiveStats name={name} question={index + 1} total={set.length} score={score} rivals={rivals}/></div>
   </section>;
 }

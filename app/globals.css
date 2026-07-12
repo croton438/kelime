@@ -77,6 +77,17 @@ input::placeholder, textarea::placeholder { color: #8b8476; }
 .stage-letter:hover, .stage-letter:focus-visible { transform:translateY(-4px); filter:drop-shadow(0 11px 9px rgba(25,113,255,.4)); outline:none; }
 .stage-letter:disabled { cursor:default; }
 .stage-letter.is-open { color:white; background:linear-gradient(145deg,#2f8cff,#1550bd); text-shadow:0 2px 5px rgba(0,0,0,.25); }
+.feedback-correct .stage-letter.is-open { background:linear-gradient(145deg,#45dc9b,#0c9a65); animation:tile-result .5s cubic-bezier(.2,.9,.25,1.25) both; }
+.feedback-wrong .stage-letter.is-open { background:linear-gradient(145deg,#fa6570,#b71934); animation:tile-shake .42s ease both; }
+.feedback-passed .stage-letter.is-open { background:linear-gradient(145deg,#8e87ff,#5145c5); animation:tile-result .45s ease both; }
+.feedback-revealed .stage-letter.is-open { color:#211708; background:linear-gradient(145deg,#ffe392,#e7a82b); animation:tile-result .45s ease both; }
+.stage-feedback-message { width:max-content; max-width:100%; margin:1.1rem auto 0; padding:.55rem 1rem; border-radius:999px; color:white; background:rgba(4,9,24,.7); border:1px solid rgba(255,255,255,.16); font-weight:950; text-align:center; }
+.feedback-correct .stage-feedback-message { color:#baffdf; background:rgba(5,107,71,.55); box-shadow:0 0 25px rgba(44,218,143,.22); }
+.feedback-wrong .stage-feedback-message { color:#ffd2d8; background:rgba(151,17,44,.55); }
+.feedback-passed .stage-feedback-message { color:#e1deff; background:rgba(68,55,164,.55); }
+.game-stage.feedback-correct { box-shadow:0 0 0 2px rgba(56,215,145,.55),0 26px 80px rgba(8,12,25,.48); }
+@keyframes tile-result { 0% { opacity:.15; transform:scale(.55) rotate(-8deg); } 65% { transform:scale(1.13) rotate(2deg); } 100% { opacity:1; transform:scale(1) rotate(0); } }
+@keyframes tile-shake { 0%,100% { transform:translateX(0); } 30% { transform:translateX(-5px); } 60% { transform:translateX(5px); } }
 .stage-value { width:max-content; margin:1.2rem auto 0; padding:.35rem 1.35rem; color:#fff; background:rgba(4,11,28,.8); border:1px solid rgba(255,255,255,.25); transform:skew(-12deg); font-size:1.35rem; font-weight:950; }
 .stage-value small { font-size:.65rem; letter-spacing:.15em; opacity:.62; }
 .stage-actions { display:flex; justify-content:center; flex-wrap:wrap; gap:.75rem; margin-top:1.5rem; }
