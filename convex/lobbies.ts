@@ -4,6 +4,27 @@ import { mutation, query } from "./_generated/server";
 const MAX_PLAYERS = 5;
 const MIN_PLAYERS = 2;
 
+const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const makeCode = () => Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+
+export const create = mutation({
+  args: { userId: v.id("users"), username: v.string() },
+  handler: async (ctx, { userId, username }) => {
+    const user = await ctx.db.get(userId);
+    if (!user) throw new ConvexError("Kullanıcı oturumu bulunamadı.");
+    let code = "";
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const candidate = makeCode();
+      const existing = await ctx.db.query("lobbies").withIndex("by_code", (q) => q.eq("code", candidate)).unique();
+      if (!existing) { code = candidate; break; }
+    }
+    if (!code) throw new ConvexError("Oda kodu üretilemedi. Lütfen tekrar deneyin.");
+    const lobbyId = await ctx.db.insert("lobbies", { code, hostUserId: userId, status: "waiting", mode: "online", durationMinutes: 4, createdAt: Date.now() });
+    await ctx.db.insert("lobbyMembers", { lobbyId, userId, username: username.trim(), ready: false, connected: true, order: 0, joinedAt: Date.now() });
+    return { lobbyId, code };
+  },
+});
+
 export const getByCode = query({
   args: { code: v.string() },
   handler: async (ctx, { code }) => {
@@ -40,5 +61,19 @@ export const start = mutation({
     if (members.length < MIN_PLAYERS || members.length > MAX_PLAYERS) throw new ConvexError("Oyun 2–5 oyuncuyla başlayabilir.");
     await ctx.db.patch(lobbyId, { status: "playing" });
     return ctx.db.insert("games", { lobbyId, mode: lobby.mode, questionSeed: `online:${lobby.code}`, status: "active", createdAt: Date.now() });
+  },
+});
+
+export const leave = mutation({
+  args: { lobbyId: v.id("lobbies"), userId: v.id("users") },
+  handler: async (ctx, { lobbyId, userId }) => {
+    const lobby = await ctx.db.get(lobbyId);
+    if (!lobby) return;
+    const members = await ctx.db.query("lobbyMembers").withIndex("by_lobby", (q) => q.eq("lobbyId", lobbyId)).collect();
+    const member = members.find((row) => row.userId === userId);
+    if (member) await ctx.db.delete(member._id);
+    const remaining = members.filter((row) => row.userId !== userId).sort((a, b) => a.joinedAt - b.joinedAt);
+    if (!remaining.length) { await ctx.db.delete(lobbyId); return; }
+    if (lobby.hostUserId === userId) await ctx.db.patch(lobbyId, { hostUserId: remaining[0].userId });
   },
 });
