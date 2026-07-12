@@ -59,8 +59,22 @@ export const start = mutation({
     if (!lobby || lobby.hostUserId !== requestingUserId) throw new ConvexError("Yalnızca lobi yöneticisi başlatabilir.");
     const members = (await ctx.db.query("lobbyMembers").withIndex("by_lobby", (q) => q.eq("lobbyId", lobbyId)).collect()).filter((m) => m.connected);
     if (members.length < MIN_PLAYERS || members.length > MAX_PLAYERS) throw new ConvexError("Oyun 2–5 oyuncuyla başlayabilir.");
+    await Promise.all(members.map((member) => ctx.db.patch(member._id, { currentQuestion: 1, score: 0, finished: false })));
     await ctx.db.patch(lobbyId, { status: "playing" });
     return ctx.db.insert("games", { lobbyId, mode: lobby.mode, questionSeed: `online:${lobby.code}`, status: "active", createdAt: Date.now() });
+  },
+});
+
+export const updateProgress = mutation({
+  args: { lobbyId: v.id("lobbies"), userId: v.id("users"), currentQuestion: v.number(), score: v.number(), finished: v.boolean() },
+  handler: async (ctx, args) => {
+    const lobby = await ctx.db.get(args.lobbyId);
+    if (!lobby || lobby.status !== "playing") throw new ConvexError("Aktif oyun bulunamadı.");
+    const member = await ctx.db.query("lobbyMembers").withIndex("by_lobby_user", (q) => q.eq("lobbyId", args.lobbyId).eq("userId", args.userId)).unique();
+    if (!member) throw new ConvexError("Bu oyuncu lobide değil.");
+    if (!Number.isInteger(args.currentQuestion) || args.currentQuestion < 1 || args.currentQuestion > 14) throw new ConvexError("Geçersiz soru numarası.");
+    if (!Number.isInteger(args.score) || args.score < -9800 || args.score > 9800) throw new ConvexError("Geçersiz puan.");
+    await ctx.db.patch(member._id, { currentQuestion: args.currentQuestion, score: args.score, finished: args.finished });
   },
 });
 
