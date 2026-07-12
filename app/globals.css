@@ -67,6 +67,8 @@ input::placeholder, textarea::placeholder { color: #8b8476; }
 .game-topbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding: 0 0 1.1rem; border-bottom:1px solid rgba(255,255,255,.12); }
 .stage-eyebrow { display:inline-flex; align-items:center; min-height:28px; padding:.35rem .75rem; border-radius:999px; color:#fff; background:linear-gradient(90deg,#d51e3e,#f0444d); box-shadow:0 0 24px rgba(240,68,77,.3); font-size:.68rem; font-weight:900; letter-spacing:.16em; }
 .stage-exit { margin-right:.65rem; padding:.4rem .7rem; color:rgba(255,255,255,.78); background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15); border-radius:999px; font-size:.66rem; font-weight:900; letter-spacing:.08em; }
+.stage-navigation { display:flex; flex-wrap:wrap; gap:.45rem; margin-bottom:.65rem; }
+.stage-navigation .stage-exit { margin:0; }
 .stage-exit:hover, .stage-exit:focus-visible { color:white; background:rgba(255,255,255,.14); outline:none; }
 .stage-layout { display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:1.25rem; }
 .stage-question { position:relative; margin:1.25rem 0 1.8rem; padding:1.2rem 1.5rem 1.25rem 2rem; border-radius:8px 18px 18px 8px; background:linear-gradient(105deg,#9f1730,#d52645 55%,#ad1734); border:1px solid rgba(255,255,255,.22); box-shadow:0 15px 35px rgba(116,7,34,.3), inset 0 1px rgba(255,255,255,.15); }
@@ -121,7 +123,8 @@ input::placeholder, textarea::placeholder { color: #8b8476; }
   .game-topbar { flex-wrap:wrap; align-items:flex-start; }
   .game-topbar > div:first-child { width:100%; }
   .game-topbar > div:last-child { width:100%; justify-content:space-between; }
-  .stage-exit { display:block; width:max-content; margin:0 0 .7rem; padding:.55rem .8rem; color:white; background:rgba(255,255,255,.14); }
+  .stage-navigation { position:sticky; top:.4rem; z-index:5; width:100%; }
+  .stage-exit { display:block; width:max-content; padding:.55rem .8rem; color:white; background:rgba(255,255,255,.14); }
   .stage-layout { grid-template-columns:1fr; }
   .stage-rivals { order:2; }
   .stage-question { margin:1rem 0 1.25rem; padding:.9rem .8rem .95rem 1.25rem; }

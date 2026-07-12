@@ -16,6 +16,8 @@ type Props = {
   name: string;
   onFinish: () => void;
   onExit?: () => void;
+  onHome?: () => void;
+  onScore?: (result: { score: number; correct: number; wrong: number; mode: "single" | "multiplayer" }) => void;
   onProgress?: (progress: {
     question: number;
     score: number;
@@ -52,6 +54,8 @@ export function SinglePlayerGame({
   name,
   onFinish,
   onExit,
+  onHome,
+  onScore,
   onProgress,
   online = false,
   rivals = [],
@@ -188,9 +192,10 @@ export function SinglePlayerGame({
         playedAt: Date.now(),
         mode: online ? "multiplayer" : "single",
       });
+      onScore?.({ score, correct, wrong, mode: online ? "multiplayer" : "single" });
       setSaved(true);
     }
-  }, [finished, saved, name, score, correct, online]);
+  }, [finished, saved, name, score, correct, wrong, online, onScore]);
   useEffect(() => {
     if (online && onProgress)
       onProgress({ question: Math.min(index + 1, 14), score, finished });
@@ -232,6 +237,11 @@ export function SinglePlayerGame({
     localStorage.removeItem("kelime-oyunu-active");
     onFinish();
   };
+  const leaveToHome = () => {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem("kelime-oyunu-active");
+    (onHome ?? onFinish)();
+  };
 
   if (finished)
     return (
@@ -266,11 +276,10 @@ export function SinglePlayerGame({
     >
       <header className="game-topbar">
         <div>
-          {online && onExit && (
-            <button type="button" onClick={onExit} className="stage-exit">
-              ← LOBİYE DÖN
-            </button>
-          )}
+          <div className="stage-navigation">
+            {online && onExit && <button type="button" onClick={onExit} className="stage-exit">← LOBİYE DÖN</button>}
+            <button type="button" onClick={leaveToHome} className="stage-exit">⌂ ANA MENÜ</button>
+          </div>
           <p className="stage-eyebrow">
             {online ? "CANLI ONLINE" : "TEK OYUNCULU"}
           </p>

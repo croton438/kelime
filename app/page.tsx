@@ -60,7 +60,8 @@ export default function Home() {
     joinLobby = useMutation(api.lobbies.join),
     startLobby = useMutation(api.lobbies.start),
     leaveLobby = useMutation(api.lobbies.leave),
-    updateProgress = useMutation(api.lobbies.updateProgress);
+    updateProgress = useMutation(api.lobbies.updateProgress),
+    recordScore = useMutation(api.leaderboard.record);
 
   useEffect(() => {
     const saved = localStorage.getItem("kelime-oyunu-player") || "";
@@ -170,10 +171,12 @@ export default function Home() {
           currentQuestion: progress.question,
           score: progress.score,
           finished: progress.finished,
-        });
+        }).catch(() => undefined);
     },
     [lobby?._id, userId, updateProgress],
   );
+  const reportScore = useCallback((result: { score: number; correct: number; wrong: number; mode: "single" | "multiplayer" }) => { void recordScore({ sessionId: getSessionId(), score: result.score, correct: result.correct, wrong: result.wrong, lettersTaken: 0, mode: result.mode }).catch(() => undefined); }, [recordScore]);
+  const exitOnlineToHome = useCallback(() => { if (lobby?._id && userId) void leaveLobby({ lobbyId: lobby._id, userId }); localStorage.removeItem("kelime-oyunu-active"); history.replaceState(null, "", "/"); setLobbyCode(""); setScreen("home"); }, [lobby?._id, userId, leaveLobby]);
 
   if (screen === "single" && singleSeed)
     return (
@@ -181,6 +184,8 @@ export default function Home() {
         <SinglePlayerGame
           name={name}
           questionSeed={singleSeed}
+          onHome={() => setScreen("home")}
+          onScore={reportScore}
           onFinish={() => setScreen("home")}
         />
       </main>
@@ -201,6 +206,8 @@ export default function Home() {
               connected: member.connected,
             }))}
           onProgress={reportProgress}
+          onScore={reportScore}
+          onHome={exitOnlineToHome}
           onExit={() => {
             setManualLobbyReturn(true);
             setScreen("lobby");
@@ -307,9 +314,12 @@ export default function Home() {
           <Mode
             title="Tek Oyunculu"
             text="530 doğal sorudan seçilen 14 soruyla yarış."
-            onClick={async () => {
+            onClick={() => {
               try {
-                await establishUser();
+                const clean = name.trim().slice(0, 20);
+                if (clean.length < 2) throw new Error("Oyuncu adı 2–20 karakter olmalı.");
+                localStorage.setItem("kelime-oyunu-player", clean);
+                setName(clean);
                 const seed = `single:${crypto.randomUUID()}`;
                 setSingleSeed(seed);
                 localStorage.setItem(
