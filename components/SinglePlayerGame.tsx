@@ -14,16 +14,18 @@ export function SinglePlayerGame({ name, onFinish, onExit, online = false, rival
   const [index, setIndex] = useState(0), [score, setScore] = useState(0), [mainTime, setMainTime] = useState(MAIN_SECONDS);
   const [revealed, setRevealed] = useState<number[]>([]), [answering, setAnswering] = useState(false), [deadline, setDeadline] = useState<number | null>(null);
   const [guess, setGuess] = useState(""), [message, setMessage] = useState(""), [correct, setCorrect] = useState(0), [wrong, setWrong] = useState(0), [passed, setPassed] = useState(0);
-  const [finished, setFinished] = useState(false), [saved, setSaved] = useState(false), [now, setNow] = useState(Date.now());
+  const [finished, setFinished] = useState(false), [saved, setSaved] = useState(false), [now, setNow] = useState(Date.now()), [transitioning, setTransitioning] = useState(false);
   const input = useRef<HTMLInputElement>(null), advancing = useRef(false), question = set[index], value = question ? Array.from(question.answer).length * 100 - revealed.length * 100 : 0;
 
-  const next = (result: "correct" | "wrong" | "revealed" | "passed") => {
+  const next = (result: "correct" | "wrong" | "revealed" | "passed", delayMs = 800) => {
     if (advancing.current) return;
     advancing.current = true;
+    setTransitioning(true);
+    setAnswering(false);
     if (result === "correct") { setScore((s) => s + value); setCorrect((c) => c + 1); }
     if (result === "wrong") { setScore((s) => s - value); setWrong((w) => w + 1); }
     if (result === "passed") setPassed((count) => count + 1);
-    setTimeout(() => { if (index + 1 >= set.length) setFinished(true); else { setIndex((i) => i + 1); setRevealed([]); setAnswering(false); setDeadline(null); setGuess(""); setMessage(""); advancing.current = false; } }, 800);
+    setTimeout(() => { if (index + 1 >= set.length) setFinished(true); else { setIndex((i) => i + 1); setRevealed([]); setAnswering(false); setDeadline(null); setGuess(""); setMessage(""); setTransitioning(false); advancing.current = false; } }, delayMs);
   };
   const beginAnswer = () => {
     if (answering || advancing.current || finished) return;
@@ -33,9 +35,9 @@ export function SinglePlayerGame({ name, onFinish, onExit, online = false, rival
     setDeadline(current + 15_000);
   };
 
-  useEffect(() => { const timer = setInterval(() => { setNow(Date.now()); if (!answering && !finished) setMainTime((t) => Math.max(0, t - 1)); }, 1000); return () => clearInterval(timer); }, [answering, finished]);
+  useEffect(() => { const timer = setInterval(() => { setNow(Date.now()); if (!answering && !transitioning && !finished) setMainTime((t) => Math.max(0, t - 1)); }, 1000); return () => clearInterval(timer); }, [answering, transitioning, finished]);
   useEffect(() => { if (mainTime === 0 && !finished) setFinished(true); }, [mainTime, finished]);
-  useEffect(() => { if (deadline && now >= deadline && !finished) { setDeadline(null); setMessage(`Bilemedi · ${question.answer}`); next("wrong"); } }, [now, deadline, finished]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (deadline && now >= deadline && !finished) { setDeadline(null); setRevealed(Array.from({ length: Array.from(question.answer).length }, (_, position) => position)); setMessage(`Bilemedi · Doğru kelime: ${question.answer}`); next("wrong", 4000); } }, [now, deadline, finished]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (answering) input.current?.focus(); }, [answering]);
   useEffect(() => { if (finished && !saved) { saveScore({ name, score, correct, playedAt: Date.now(), mode: online ? "multiplayer" : "single" }); setSaved(true); } }, [finished, saved, name, score, correct, online]);
 
@@ -44,12 +46,13 @@ export function SinglePlayerGame({ name, onFinish, onExit, online = false, rival
   const answerTime = deadline ? Math.max(0, Math.ceil((deadline - now) / 1000)) : 15;
   return <section className={`game-stage mx-auto max-w-7xl p-5 md:p-8 ${answering ? "is-answering" : ""}`}>
     <header className="game-topbar"><div>{online && onExit && <button type="button" onClick={onExit} className="stage-exit">← LOBİYE DÖN</button>}<p className="stage-eyebrow">{online ? "CANLI ONLINE" : "TEK OYUNCULU"}</p><h2 className="mt-2 text-xl font-black uppercase tracking-wide text-white">{name} <span className="text-white/35">·</span> Soru {index + 1}<span className="text-white/40">/{set.length}</span></h2></div><div className="flex gap-3"><Stat label="PUAN" value={score}/><Stat label={answering ? "CEVAP" : "SÜRE"} value={answering ? answerTime : `${Math.floor(mainTime / 60)}:${String(mainTime % 60).padStart(2,"0")}`}/></div></header>
+    {answering && deadline && <div className={`answer-countdown ${answerTime <= 5 ? "is-urgent" : ""}`} role="timer" aria-live="assertive"><span>CEVAP SÜRESİ</span><strong>{answerTime}</strong><small>SANİYE</small></div>}
     <div className="stage-layout mt-6"><div>
     <div className="stage-question"><p className="text-xs font-black uppercase tracking-[.18em] text-white/65">{Array.from(question.answer).length} harf{question.origin !== "Doğrulanacak" && <> · {question.origin}</>} · {question.difficulty}</p><p className="mt-3 text-xl font-bold leading-snug text-white md:text-2xl">{question.clue}</p></div>
     <div className="stage-letters" aria-label="Cevap modunu açan harf kutuları">{Array.from(question.answer).map((letter, i) => <button type="button" key={i} onClick={beginAnswer} disabled={answering} aria-label={`${i + 1}. harf kutusu; cevap vermek için seç`} title="Cevap vermek için tıkla" className={`stage-letter ${revealed.includes(i) ? "is-open" : ""}`}>{revealed.includes(i) ? letter : ""}</button>)}</div>
     <p className="stage-value">{value}<small> PUAN</small></p>
     {message && <p role="status" className={`mt-5 text-center font-black ${message === "Doğru cevap" ? "text-teal-300" : "text-rose-300"}`}>{message}</p>}
-    {answering ? <form onSubmit={(e) => { e.preventDefault(); const feedback = answerFeedback(guess, question.answer); setMessage(feedback); if (feedback === "Doğru cevap") { setDeadline(null); next("correct"); } else setGuess(""); }} className="stage-answer-form"><input ref={input} value={guess} onChange={(e) => setGuess(e.target.value)} aria-label="Cevabın" placeholder="CEVABINI YAZ"/><button className="stage-action stage-answer">GÖNDER</button></form> : <div className="stage-actions"><button onClick={() => { setMessage("Pas geçildi"); next("passed"); }} className="stage-action stage-pass">PAS</button><button disabled={revealed.length === Array.from(question.answer).length} onClick={() => { const opened = revealLetter(question.answer, revealed); setRevealed(opened); if (opened.length === Array.from(question.answer).length) { setMessage(`Kelime tamamlandı · ${question.answer}`); next("revealed"); } }} className="stage-action stage-reveal">HARF LÜTFEN</button><button onClick={beginAnswer} className="stage-action stage-answer">CEVAPLA</button></div>}
+    {!transitioning && (answering ? <form onSubmit={(e) => { e.preventDefault(); const feedback = answerFeedback(guess, question.answer); setMessage(feedback); if (feedback === "Doğru cevap") { setDeadline(null); next("correct"); } else setGuess(""); }} className="stage-answer-form"><input ref={input} value={guess} onChange={(e) => setGuess(e.target.value)} aria-label="Cevabın" placeholder="CEVABINI YAZ"/><button className="stage-action stage-answer">GÖNDER</button></form> : <div className="stage-actions"><button onClick={() => { setMessage("Pas geçildi"); next("passed"); }} className="stage-action stage-pass">PAS</button><button disabled={revealed.length === Array.from(question.answer).length} onClick={() => { const opened = revealLetter(question.answer, revealed); setRevealed(opened); if (opened.length === Array.from(question.answer).length) { setMessage(`Kelime tamamlandı · ${question.answer}`); next("revealed", 3000); } }} className="stage-action stage-reveal">HARF LÜTFEN</button><button onClick={beginAnswer} className="stage-action stage-answer">CEVAPLA</button></div>)}
     </div><LiveStats name={name} question={index + 1} total={set.length} score={score} rivals={rivals}/></div>
   </section>;
 }

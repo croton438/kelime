@@ -97,6 +97,12 @@ input::placeholder, textarea::placeholder { color: #8b8476; }
 .stage-stat strong { display:block; margin-top:.1rem; color:white; font-size:1.4rem; line-height:1; }
 .game-stage [role="status"] { color:#ffcfda !important; }
 .game-stage.is-answering { box-shadow:0 0 0 2px rgba(240,54,80,.7),0 26px 80px rgba(8,12,25,.48); }
+.answer-countdown { display:flex; align-items:baseline; justify-content:center; gap:.6rem; width:max-content; margin:1rem auto -.25rem; padding:.55rem 1.2rem; color:white; background:rgba(4,9,24,.82); border:1px solid rgba(255,255,255,.2); border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.28); }
+.answer-countdown span, .answer-countdown small { color:rgba(255,255,255,.58); font-size:.62rem; font-weight:900; letter-spacing:.14em; }
+.answer-countdown strong { min-width:1.3em; text-align:center; color:#ffd8df; font-size:2.5rem; line-height:1; font-variant-numeric:tabular-nums; }
+.answer-countdown.is-urgent { background:linear-gradient(120deg,#9f1730,#e02a43); border-color:rgba(255,255,255,.5); animation:countdown-pulse .8s ease-in-out infinite alternate; }
+.answer-countdown.is-urgent strong { color:white; font-size:3rem; }
+@keyframes countdown-pulse { from { transform:scale(1); box-shadow:0 10px 30px rgba(159,23,48,.3); } to { transform:scale(1.06); box-shadow:0 0 34px rgba(248,68,90,.65); } }
 
 @media (max-width: 800px) {
   .game-stage { border-radius:18px; padding:1rem !important; }
